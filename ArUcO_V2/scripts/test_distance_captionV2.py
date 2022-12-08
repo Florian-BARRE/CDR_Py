@@ -62,7 +62,10 @@ while True:
         # teta = math.atan(abs((dA_m - dB_m) / (1 + dA_m*dB_m)))
         teta = math.atan(abs(dB_m))
         # Distance focale sol
-        df_sol = math.sqrt(math.pow(distance, 2) - math.pow(hauteur_cam, 2))
+        try :
+            df_sol = math.sqrt(math.pow(distance, 2) - math.pow(hauteur_cam, 2))
+        except:
+            df_sol = 0
         reel_x = df_sol * math.cos(teta)
         reel_y = df_sol * math.sin(teta)
 
@@ -71,27 +74,32 @@ while True:
         cv2.putText(frame, str(distance), (10, 40) , cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         # En cours de recherche -> obtenir la distance avec palet à plat
-        # Get le point le plus proche du centre de l'image
+        # Get le point le plus proche du centre de l'image selon x
         centre_coords = (frame.shape[1]//2, frame.shape[0]//2)
         index_pt_central = -1
-        distance_min = 1000000
+        distance_min = 0
         for i in range(len(corners_coords)):
-            if distance_between_two_points(centre_coords, corners_coords[i]) < distance_min:
+            if abs(corners_coords[i][0] - centre_coords[0]) < distance_min or i==0:
                 index_pt_central = i
-                distance_min = distance_between_two_points(centre_coords, corners_coords[i])
+                distance_min = abs(corners_coords[i][0] - centre_coords[0])
 
-        H_coords = (corners_coords[(index_pt_central-1)%4][0], corners_coords[index_pt_central][1])
+        pt_central = corners_coords[index_pt_central]
+        pt_oppose_central = corners_coords[(index_pt_central - 2) % 4]
 
-        cv2.line(frame, H_coords, corners_coords[index_pt_central], thickness=1, color=(255, 255, 0))
-        cv2.line(frame, corners_coords[(index_pt_central-1)%4], corners_coords[index_pt_central], thickness=1, color=(255, 255, 0))
-        cv2.line(frame, corners_coords[(index_pt_central - 1) % 4], H_coords, thickness=1, color=(255, 255, 0))
+        H_coords = (pt_oppose_central[0], pt_central[1])
 
-        pt_central_H_distance = distance_between_two_points(H_coords, corners_coords[index_pt_central])
-        hypo = distance_between_two_points(corners_coords[(index_pt_central-1)%4], corners_coords[index_pt_central])
+
+        cv2.line(frame, H_coords, pt_central, thickness=1, color=(255, 255, 0))
+        cv2.line(frame, pt_oppose_central, pt_central, thickness=1, color=(255, 255, 0))
+        cv2.line(frame, pt_oppose_central, H_coords, thickness=1, color=(255, 255, 0))
+
+        pt_central_H_distance = distance_between_two_points(H_coords, pt_central)
+        hypo = distance_between_two_points(pt_oppose_central, pt_central)
         angle_rot = math.acos(pt_central_H_distance/hypo)
 
-        cote_avant_rotation = distance_between_two_points(corners_coords[(index_pt_central-1)%4], corners_coords[index_pt_central])
-        cote_apres_rotation = cote_avant_rotation * math.cos(angle_rot)
+
+        cote_avant_rotation = distance_between_two_points(pt_oppose_central, pt_central)
+        cote_apres_rotation = cote_avant_rotation * math.cos(angle_rot) * math.sqrt(2)
 
         draw_corners(frame, founds)
         cv2.putText(frame, f"Angle rotation {round(angle_rot)}, en degre:{round(angle_rot*57.2958)}", (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
@@ -104,7 +112,7 @@ while True:
         cv2.putText(
             frame,
             "Point le plus proche du centre",
-            (corners_coords[index_pt_central][0], corners_coords[index_pt_central][1]),
+            (pt_central[0], pt_central[1]),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 0, 255),
